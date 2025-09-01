@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: netaspark-php
+    container_name: netaspark_app
+    volumes:
+      - ./:/var/www/html
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: netaspark
+      DB_USERNAME: netaspark
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+    depends_on:
+      - db
+      - redis
+
+  web:
+    image: nginx:1.25-alpine
+    container_name: netaspark_web
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  db:
+    image: postgres:15-alpine
+    container_name: netaspark_db
+    restart: always
+    environment:
+      POSTGRES_DB: netaspark
+      POSTGRES_USER: netaspark
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: netaspark_redis
+    volumes:
+      - redis_data:/data
+
+volumes:
+  db_data:
+  redis_data:
