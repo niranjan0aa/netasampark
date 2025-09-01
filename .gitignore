@@ -1,0 +1,16 @@
+.env
+vendor/
+node_modules/
+storage/
+.idea/
+.vscode/
+composer.lock
+package-lock.json
+pnpm-lock.yaml
+dist/
+build/
+.DS_Store
+docker/mysql/
+.phpunit.cache/
+coverage/
+/.fleet/
