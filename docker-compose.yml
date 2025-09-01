@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netasampark-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - netasampark
+
+  nginx:
+    image: nginx:alpine
+    container_name: netasampark-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - netasampark
+    depends_on:
+      - app
+
+  db:
+    image: postgres:15-alpine
+    container_name: netasampark-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: netasampark
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - netasampark
+
+  redis:
+    image: redis:7-alpine
+    container_name: netasampark-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - netasampark
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: netasampark-meilisearch
+    restart: unless-stopped
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: masterKey
+    volumes:
+      - meilisearch_data:/meili_data
+    networks:
+      - netasampark
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: netasampark-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - netasampark
+
+  horizon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netasampark-horizon
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: php artisan horizon
+    networks:
+      - netasampark
+    depends_on:
+      - app
+      - db
+      - redis
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netasampark-scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: php artisan schedule:work
+    networks:
+      - netasampark
+    depends_on:
+      - app
+      - db
+      - redis
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netasampark-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    networks:
+      - netasampark
+    depends_on:
+      - app
+      - db
+      - redis
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  meilisearch_data:
+    driver: local
+
+networks:
+  netasampark:
+    driver: bridge
